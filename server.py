@@ -8,13 +8,15 @@ from aiogram.dispatcher import Dispatcher
 from aiogram.types.message import ContentType
 from aiogram.utils.markdown import text, bold, italic, code, pre
 from aiogram.types import ParseMode, InputMediaPhoto, InputMediaVideo, ChatActions
-from aiogram.types import ReplyKeyboardRemove,ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardRemove,ReplyKeyboardMarkup, KeyboardButton, \
+                          InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 import config
 from database import Database
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,10 +34,12 @@ async def start(message: types.Message):
     button_add_mood = KeyboardButton('Добавить муд📝')
 
     menu = ReplyKeyboardMarkup()
-    menu.add(button_profile, button_add_mood)
+    menu.add(button_add_mood, button_profile)
 
     db.add_user(name=message.from_user.first_name, telegram_username=message.from_user.username)
-    await message.answer(f'Привет {message.from_user.first_name.title()}!👋\n\nЭто телеграм бот Mood😎\nМесто, где ты можешь поделится своим мудом на сегодня\nИ не важно чёрный он или белый :)',reply_markup=menu)
+    await message.answer(f"Привет {message.from_user.first_name.title()}!👋\n\n" \
+                         f"Это телеграм бот Mood😎\nМесто, где ты можешь поделится своим мудом на сегодня\n" \
+                         f"И не важно чёрный он или белый :)", reply_markup=menu)
 
 @dp.message_handler(lambda message: message.text.lower().startswith('профиль'), state='*')
 async def profile(message: types.Message):
@@ -48,7 +52,7 @@ class MoodParams(StatesGroup):
     type = State()
     text = State()
 
-@dp.message_handler(lambda message: message.text.lower().startswith('добавить муд'),state='*')
+@dp.message_handler(lambda message: message.text.lower().startswith('добавить муд'), state='*')
 async def add_mood(message: types.Message):
     button_white_mood = KeyboardButton('🤍')
     button_black_mood = KeyboardButton('🖤')

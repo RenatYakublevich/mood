@@ -17,7 +17,8 @@ class Database:
 
     def show_info_user(self, info_param, telegram_username):
         with self.connection:
-            return self.cursor.execute(f"SELECT {info_param} FROM `users` WHERE `telegram_username` = ?", (telegram_username,)).fetchone()[0]
+            return self.cursor.execute(f"SELECT {info_param} FROM `users` WHERE `telegram_username` = ?",
+                                       (telegram_username,)).fetchone()[0]
 
 
     def add_mood(self, text, telegram_username, type):
