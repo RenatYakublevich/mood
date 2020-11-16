@@ -1,5 +1,4 @@
 import logging
-import os
 
 from aiogram import Bot, types
 from aiogram.utils import executor
@@ -32,9 +31,10 @@ db = Database('db_model.db')
 async def start(message: types.Message):
     button_profile = KeyboardButton('Профиль👤')
     button_add_mood = KeyboardButton('Добавить муд📝')
+    button_rating = KeyboardButton('Рейтинг🏆')
 
     menu = ReplyKeyboardMarkup()
-    menu.add(button_add_mood, button_profile)
+    menu.add(button_add_mood, button_profile, button_rating)
 
     db.add_user(name=message.from_user.first_name, telegram_username=message.from_user.username)
     await message.answer(f"Привет {message.from_user.first_name.title()}!👋\n\n" \
@@ -64,19 +64,35 @@ async def add_mood(message: types.Message):
     await MoodParams.type.set()
 
 @dp.message_handler(state=MoodParams.type)
-async def mood_type(message: types.Message, state: FSMContext):
+async def input_mood_type(message: types.Message, state: FSMContext):
     await state.update_data(type=message.text)
     await message.answer('Прекрасно!\nТеперь опиши свой муд парочкой слов')
     await MoodParams.next()
 
 @dp.message_handler(state=MoodParams.text)
-async def mood_text(message: types.Message, state: FSMContext):
+async def input_mood_text(message: types.Message, state: FSMContext):
     await state.update_data(text=message.text)
     await message.answer('Отлично!\nТвой муд опубликован')
     user_data = await state.get_data() # словарь с всеми переменными машины состояния
     db.add_mood(text=user_data['text'], type=user_data['type'], telegram_username=message.from_user.username) # добавляем запись в дб
     await state.finish()
     await start(message)
+
+# TODO : обернуть в декоратор 
+@dp.message_handler(commands=['exit'], state='*')
+async def exit(message: types.Message, state: FSMContext):
+    await state.finish()
+    await start(message)
+
+@dp.message_handler(lambda message: message.text.lower().startswith('рейтинг'), state='*')
+async def show_rating(message: types.Message):
+    place_num = 1
+    rating = ''
+    for place in db.show_rating():
+        rating += f'{place_num} место - {db.show_info_user("name",place[0]).title()}'
+        place_num += 1
+    await message.answer(rating)
+
 
 
 

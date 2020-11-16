@@ -31,11 +31,6 @@ class Database:
             return self.cursor.execute(f"SELECT {info_param} FROM `users` WHERE `telegram_username` = ?",
                                        (telegram_username,)).fetchone()[0]
 
-    def show_count_mood(self, telegram_username):
-        with self.connection:
-            return self.cursor.execute(f"SELECT `count_moods` FROM `users` WHERE `telegram_username` = ?",
-                                       (telegram_username,)).fetchone()[0]
-
     def add_mood(self, text, telegram_username, type):
         """
         Функция создаёт запись в таблице moods
@@ -44,12 +39,15 @@ class Database:
         :param type: тип записи(белый или чёрный / True или False)
         :return: None
         """
-
-
         with self.connection:
             type_bool = True if type == '🤍' else False # если сердечко белое - True
+            # прибовляем +1 к количеству записей
             self.cursor.execute('UPDATE `users` SET `count_moods` = ? WHERE `telegram_username` = ?',
-                                       (int(self.show_count_mood(telegram_username)) + 1, telegram_username))
+                                       (int(self.show_info_user('count_moods', telegram_username)) + 1, telegram_username))
+
+            # прибавляем +1 к количеству поинтов
+            self.cursor.execute('UPDATE `users` SET `points` = ? WHERE `telegram_username` = ?',
+                                (int(self.show_info_user('points', telegram_username)) + 5, telegram_username))
             return self.cursor.execute(
                 "INSERT INTO `moods` (`text`, `telegram_username`, `type`) VALUES(?,?,?)",
                 (text, telegram_username, type_bool))
@@ -59,4 +57,8 @@ class Database:
             pass
 
     def show_rating(self):
-        pass
+        with self.connection:
+            with self.connection:
+                return self.cursor.execute(
+                    'SELECT `telegram_username` FROM `users` ORDER BY `points` DESC LIMIT 5').fetchall()
+
