@@ -31,6 +31,10 @@ class Database:
             return self.cursor.execute(f"SELECT {info_param} FROM `users` WHERE `telegram_username` = ?",
                                        (telegram_username,)).fetchone()[0]
 
+    def show_count_mood(self, telegram_username):
+        with self.connection:
+            return self.cursor.execute(f"SELECT `count_moods` FROM `users` WHERE `telegram_username` = ?",
+                                       (telegram_username,)).fetchone()[0]
 
     def add_mood(self, text, telegram_username, type):
         """
@@ -40,15 +44,15 @@ class Database:
         :param type: тип записи(белый или чёрный / True или False)
         :return: None
         """
-        with self.connection:
-            if type == '🤍':
-                type = True
-            else:
-                type = False
 
+
+        with self.connection:
+            type_bool = True if type == '🤍' else False # если сердечко белое - True
+            self.cursor.execute('UPDATE `users` SET `count_moods` = ? WHERE `telegram_username` = ?',
+                                       (int(self.show_count_mood(telegram_username)) + 1, telegram_username))
             return self.cursor.execute(
                 "INSERT INTO `moods` (`text`, `telegram_username`, `type`) VALUES(?,?,?)",
-                (text, telegram_username, type))
+                (text, telegram_username, type_bool))
 
     def show_info_mood(self):
         with self.connection:
