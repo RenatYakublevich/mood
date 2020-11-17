@@ -42,7 +42,7 @@ class Database:
         :return: None
         """
         with self.connection:
-            self.cursor.execute(f'UPDATE `users` SET `last_view_mood` = ? WHERE `telegram_username` = ?',(info_param_value,telegram_username))
+            self.cursor.execute(f'UPDATE `users` SET `{info_param}` = ? WHERE `telegram_username` = ?',(info_param_value,telegram_username))
 
     def add_mood(self, text, telegram_username, type):
         """

@@ -16,7 +16,7 @@ from database import Database
 
 
 # логирование
-logging.basicConfig(filename="all_log.log", level=logging.INFO, format='%(asctime)s - %(levelname)s -%(message)s')
+logging.basicConfig()
 warning_log = logging.getLogger("warning_log")
 warning_log.setLevel(logging.WARNING)
 
@@ -42,7 +42,7 @@ async def start(message: types.Message):
         button_profile = KeyboardButton('Профиль👤') # Done!
         button_add_mood = KeyboardButton('Добавить муд📝') # Done!
         button_rating = KeyboardButton('Рейтинг🏆') # Done!
-        button_feed = KeyboardButton('Лента📰') # 50 / 50 фикс баг с тем что повторяется последний муд
+        button_feed = KeyboardButton('Лента📰') # 75 / 25 добавить лайки
 
         menu = ReplyKeyboardMarkup()
         menu.add(button_add_mood, button_profile, button_rating, button_feed)
@@ -139,6 +139,8 @@ async def show_mood_feed_next(message: types.Message):
     try:
         await message.answer(
             f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username) + 1)[2]}')
+        db.update_info_user(info_param='last_view_mood', info_param_value=db.show_info_user("last_view_mood", message.from_user.username) + 1,
+                            telegram_username=message.from_user.username)
     except TypeError:
         db.update_info_user(info_param='last_view_mood',info_param_value=1,telegram_username=message.from_user.username)
         await message.answer(
