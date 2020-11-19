@@ -1,5 +1,6 @@
 import logging
 
+from aiogram import *
 from aiogram import Bot, types
 from aiogram.utils import executor
 from aiogram.dispatcher import Dispatcher
@@ -35,6 +36,8 @@ dp = Dispatcher(bot,storage=MemoryStorage())
 
 db = Database('db_model.db')
 
+BACK = 'Назад◀'
+
 
 @dp.message_handler(commands=['start', 'help'], state='*')
 async def start(message: types.Message):
@@ -42,10 +45,11 @@ async def start(message: types.Message):
         button_profile = KeyboardButton('Профиль👤') # Done!
         button_add_mood = KeyboardButton('Добавить муд📝') # Done!
         button_rating = KeyboardButton('Рейтинг🏆') # Done!
-        button_feed = KeyboardButton('Лента📰') # 75 / 25 добавить лайки
+        button_feed = KeyboardButton('Лента📰') # Done!
+        button_achievements = KeyboardButton('Достижения🎖')
 
         menu = ReplyKeyboardMarkup()
-        menu.add(button_add_mood, button_profile, button_rating, button_feed)
+        menu.add(button_add_mood, button_profile, button_rating, button_feed, button_achievements)
 
         db.add_user(name=message.from_user.first_name, telegram_username=message.from_user.username)
         await message.answer(f"Привет {message.from_user.first_name.title()}!👋\n\n" \
@@ -55,8 +59,8 @@ async def start(message: types.Message):
         warning_log.warning(e)
 
 
-@dp.message_handler(lambda message: message.text.lower().startswith('профиль'), state='*')
-async def profile(message: types.Message):
+@dp.message_handler(lambda message: message.text.lower().startswith('профиль') or message.text == '/profile', state='*')
+async def profile(message):
     try:
         await message.answer(f'Ваш ник - {db.show_info_user(info_param="name",telegram_username=message.from_user.username).title()}\n' \
                              f'Количество очков - {db.show_info_user(info_param="points", telegram_username=message.from_user.username)}\n' \
@@ -71,7 +75,7 @@ class MoodParams(StatesGroup):
     text = State()
 
 
-@dp.message_handler(lambda message: message.text.lower().startswith('добавить муд'), state='*')
+@dp.message_handler(lambda message: message.text.lower().startswith('добавить муд') or message.text == '/add_mood', state='*')
 async def add_mood(message: types.Message):
     button_white_mood = KeyboardButton('🤍')
     button_black_mood = KeyboardButton('🖤')
@@ -103,48 +107,107 @@ async def input_mood_text(message: types.Message, state: FSMContext):
         warning_log.warning(e)
 
 
-# TODO : обернуть в декоратор 
-@dp.message_handler(commands=['exit'], state='*')
-async def exit(message: types.Message, state: FSMContext):
-    await state.finish()
-    await start(message)
-
-
-@dp.message_handler(lambda message: message.text.lower().startswith('рейтинг'), state='*')
+@dp.message_handler(lambda message: message.text.lower().startswith('рейтинг') or message.text == '/rating', state='*')
 async def show_rating(message: types.Message):
     try:
         place_num = 1
         rating = ''
         for place in db.show_rating():
-            rating += f'{place_num} место - {db.show_info_user("name",place[0]).title()}'
+            rating += f'{place_num} место - {db.show_info_user("name",place[0]).title()}\n'
             place_num += 1
         await message.answer(rating)
     except Exception as e:
         warning_log.warning(e)
 
 
-@dp.message_handler(lambda message: message.text.startswith('Лента'), state='*')
+@dp.message_handler(lambda message: message.text.startswith('Лента') or message.text == '/feed', state='*')
 async def show_mood_feed(message: types.Message):
     button_like = KeyboardButton('❤')
     button_next= KeyboardButton('➡')
+    button_back = KeyboardButton(BACK)
 
     menu = ReplyKeyboardMarkup()
-    menu.add(button_like, button_next)
+    menu.add(button_back, button_like, button_next)
 
     await message.answer(f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[2]}',reply_markup=menu)
 
 
 @dp.message_handler(lambda message: message.text.startswith('➡'), state='*')
-async def show_mood_feed_next(message: types.Message):
+async def show_mood_feed_next(message: types.Message, state: FSMContext):
     try:
+        if message.text == BACK:
+            await _exit(message, state)
         await message.answer(
             f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username) + 1)[2]}')
+
+        # обновляем последний муд юзера на + 1
         db.update_info_user(info_param='last_view_mood', info_param_value=db.show_info_user("last_view_mood", message.from_user.username) + 1,
                             telegram_username=message.from_user.username)
-    except TypeError:
+
+
+    except TypeError: # если записи заканчиваются
+        # обновляем последний муд юзера на 1
         db.update_info_user(info_param='last_view_mood',info_param_value=1,telegram_username=message.from_user.username)
         await message.answer(
             f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[2]}')
+
+    except Exception as e:
+        warning_log.warning(e)
+
+
+@dp.message_handler(lambda message: message.text.startswith('❤'), state='*')
+async def show_mood_feed_like(message: types.Message, state: FSMContext):
+    try:
+        if message.text == BACK:
+            await _exit(message, state)
+        await message.answer(
+            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username) + 1)[2]}')
+
+        # добавляем лайк к записе
+        db.update_info_mood('likes',
+                            db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[4] + 1,
+                            db.show_info_user("last_view_mood", message.from_user.username))
+
+        # добавляем очки юзеру который лайкнул
+        db.update_info_user(info_param='points',
+                            info_param_value=db.show_info_user("points", message.from_user.username) + 2,
+                            telegram_username=message.from_user.username)
+
+        # добавляем +1 к счётчику лайков
+        db.update_info_user(info_param='count_likes',
+                            info_param_value=db.show_info_user("count_likes", message.from_user.username) + 1,
+                            telegram_username=message.from_user.username)
+
+        # обновляем последний муд юзера + 1
+        db.update_info_user(info_param='last_view_mood', info_param_value=db.show_info_user("last_view_mood", message.from_user.username) + 1,
+                            telegram_username=message.from_user.username)
+    except TypeError: # если записи заканчиваются
+
+        db.update_info_user(info_param='count_likes',
+                            info_param_value=db.show_info_user("count_likes", message.from_user.username) + 1,
+                            telegram_username=message.from_user.username)
+        db.update_info_user(info_param='points',
+                            info_param_value=db.show_info_user("points", message.from_user.username) + 2,
+                            telegram_username=message.from_user.username)
+        db.update_info_mood('likes',
+                            db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[4] + 1,
+                            db.show_info_user("last_view_mood", message.from_user.username))
+        db.update_info_user(info_param='last_view_mood',info_param_value=1,telegram_username=message.from_user.username)
+        await message.answer(
+            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[2]}')
+
+    except Exception as e:
+        warning_log.warning(e)
+
+@dp.message_handler(lambda message: message.text.startswith('Достижения') or message.text == '/achievements')
+async def achievements(message: types.Message):
+    await message.answer(
+        f'Достижения :\n\nЛюбовь всему миру🥰\nЛайкнуть 50 мудов\n{str(db.show_info_user("count_likes", message.from_user.username)) + "/50" if db.show_info_user("count_likes", message.from_user.username) < 50 else "Done✅"}\n\nКонтент крейтор🎥\nДобавить 20 мудов\n{str(db.show_info_user("count_moods", message.from_user.username)) + "/20" if db.show_info_user("count_moods", message.from_user.username) < 20 else "Done✅"}\n\nЛучший в мире😎\nТоп 1 в рейтинге\n0/1')
+
+@dp.message_handler(lambda message: message.text == BACK, state='*')
+async def _exit(message: types.Message, state: FSMContext):
+    await state.finish()
+    await start(message)
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)

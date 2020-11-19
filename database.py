@@ -42,7 +42,9 @@ class Database:
         :return: None
         """
         with self.connection:
-            self.cursor.execute(f'UPDATE `users` SET `{info_param}` = ? WHERE `telegram_username` = ?',(info_param_value,telegram_username))
+            self.cursor.execute(f'UPDATE `users` SET `{info_param}` = ? WHERE `telegram_username` = ?',
+                               (info_param_value,telegram_username))
+
 
     def add_mood(self, text, telegram_username, type):
         """
@@ -72,8 +74,18 @@ class Database:
         :return: функция возвращает информацию о записе по её айди
         """
         with self.connection:
-            return self.cursor.execute(f"SELECT `type`,`telegram_username`,`text` FROM `moods` WHERE `id` = ?",
+            return self.cursor.execute(f"SELECT `type`,`telegram_username`,`text`,`id`,`likes` FROM `moods` WHERE `id` = ?",
                                        (mood_id,)).fetchone()
+
+    def update_info_mood(self, info_param, info_param_value, mood_id):
+        """
+        :param info_param: параметр для обновления
+        :param info_param_value: значения параметра для обновления
+        :param mood_id:  айди записи
+        :return: None
+        """
+        with self.connection:
+            self.cursor.execute(f'UPDATE `moods` SET `{info_param}` = {info_param_value} WHERE `id` = {mood_id}')
 
 
     def show_rating(self):
@@ -85,7 +97,9 @@ class Database:
                 'SELECT `telegram_username` FROM `users` ORDER BY `points` DESC LIMIT 5').fetchall()
 
 
-# db = Database('db_model.db') # FOR DEBUG
+db = Database('db_model.db') # FOR DEBUG
+
+# db.update_info_mood('likes',int(db.show_info_mood(1)[-1]) + 1,1)
 
 # print(db.update_info_user(info_param='x',info_param_value=2,telegram_username='dop3file')) # FOR DEBUG
 
