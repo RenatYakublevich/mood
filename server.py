@@ -37,6 +37,13 @@ dp = Dispatcher(bot,storage=MemoryStorage())
 db = Database('db_model.db')
 
 BACK = 'Назад◀'
+ad_count = 10
+
+
+async def ad(message: types.Message):
+    photo = open('ad.jpg','rb')
+
+    await message.answer_photo(photo,caption='Здесь могла быть ваша реклама :)')
 
 
 @dp.message_handler(commands=['start', 'help'], state='*')
@@ -129,7 +136,8 @@ async def show_mood_feed(message: types.Message):
     menu = ReplyKeyboardMarkup()
     menu.add(button_back, button_like, button_next)
 
-    await message.answer(f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[2]}',reply_markup=menu)
+    await message.answer(
+        f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[0] == 0 else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[2]}',reply_markup=menu)
 
 
 @dp.message_handler(lambda message: message.text.startswith('➡'), state='*')
@@ -137,19 +145,31 @@ async def show_mood_feed_next(message: types.Message, state: FSMContext):
     try:
         if message.text == BACK:
             await _exit(message, state)
+
+        if db.show_info_user(info_param='ad_count',telegram_username=message.from_user.username) / ad_count == 1:
+            await ad(message)
+            db.update_info_user(info_param='ad_count',
+                                info_param_value=1,
+                                telegram_username=message.from_user.username)
+            return 1
+
         await message.answer(
-            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username) + 1)[2]}')
+            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username) + 1)[0] == 0 else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username) + 1)[2]}')
+
+        # добавляем +1 к счётчику рекламы(каждые 10 мудов реклама)
+        db.update_info_user(info_param='ad_count', info_param_value=db.show_info_user("ad_count", message.from_user.username) + 1,
+                            telegram_username=message.from_user.username)
 
         # обновляем последний муд юзера на + 1
         db.update_info_user(info_param='last_view_mood', info_param_value=db.show_info_user("last_view_mood", message.from_user.username) + 1,
                             telegram_username=message.from_user.username)
 
 
-    except TypeError: # если записи заканчиваются
+    except TypeError as e: # если записи заканчиваются
         # обновляем последний муд юзера на 1
         db.update_info_user(info_param='last_view_mood',info_param_value=1,telegram_username=message.from_user.username)
         await message.answer(
-            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[2]}')
+            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == 0 else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[2]}')
 
     except Exception as e:
         warning_log.warning(e)
@@ -160,8 +180,18 @@ async def show_mood_feed_like(message: types.Message, state: FSMContext):
     try:
         if message.text == BACK:
             await _exit(message, state)
+        if db.show_info_user(info_param='ad_count',telegram_username=message.from_user.username) / ad_count == 1:
+            await ad(message)
+            db.update_info_user(info_param='ad_count',
+                                info_param_value=1,
+                                telegram_username=message.from_user.username)
+            return 1
         await message.answer(
-            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username) + 1)[2]}')
+            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username) + 1)[0] == 0 else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username) + 1)[2]}')
+        # добавляем +1 к счётчику рекламы(каждые 10 мудов реклама)
+        db.update_info_user(info_param='ad_count',
+                            info_param_value=db.show_info_user("ad_count", message.from_user.username) + 1,
+                            telegram_username=message.from_user.username)
 
         # добавляем лайк к записе
         db.update_info_mood('likes',
@@ -181,8 +211,8 @@ async def show_mood_feed_like(message: types.Message, state: FSMContext):
         # обновляем последний муд юзера + 1
         db.update_info_user(info_param='last_view_mood', info_param_value=db.show_info_user("last_view_mood", message.from_user.username) + 1,
                             telegram_username=message.from_user.username)
-    except TypeError: # если записи заканчиваются
-
+    except TypeError as e: # если записи заканчиваются
+        #print(e)
         db.update_info_user(info_param='count_likes',
                             info_param_value=db.show_info_user("count_likes", message.from_user.username) + 1,
                             telegram_username=message.from_user.username)
@@ -194,8 +224,7 @@ async def show_mood_feed_like(message: types.Message, state: FSMContext):
                             db.show_info_user("last_view_mood", message.from_user.username))
         db.update_info_user(info_param='last_view_mood',info_param_value=1,telegram_username=message.from_user.username)
         await message.answer(
-            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == "0" else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username))[2]}')
-
+            f'{"🖤" if db.show_info_mood(db.show_info_user("last_view_mood",message.from_user.username))[0] == 0 else "🤍"}\n{db.show_info_mood(db.show_info_user("last_view_mood", message.from_user.username)  )[2]}')
     except Exception as e:
         warning_log.warning(e)
 
